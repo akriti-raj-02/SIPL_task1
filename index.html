@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="theme-color" content="#0b0d16" />
+  <meta
+    name="description"
+    content="TaskFlow is a premium, local-first productivity app for organizing your day."
+  />
+  <title>TaskFlow — Organize your day</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <path d="m5 12.5 4.2 4.2L19 7" />
+    </symbol>
+
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" />
+    </symbol>
+
+    <symbol id="icon-calendar" viewBox="0 0 24 24">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M7.5 3.5v3M16.5 3.5v3M3.5 9h17" />
+    </symbol>
+
+    <symbol id="icon-list" viewBox="0 0 24 24">
+      <path d="M8.5 6h11M8.5 12h11M8.5 18h11" />
+      <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+    </symbol>
+
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="10.8" cy="10.8" r="6.8" />
+      <path d="m16 16 4.5 4.5" />
+    </symbol>
+
+    <symbol id="icon-x" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </symbol>
+
+    <symbol id="icon-trash" viewBox="0 0 24 24">
+      <path d="M4.5 7.5h15M9 4.5h6l1 3H8l1-3ZM7 7.5l.75 12h8.5l.75-12M10 11v5M14 11v5" />
+    </symbol>
+
+    <symbol id="icon-edit" viewBox="0 0 24 24">
+      <path d="m14.5 5.5 4 4M5 19l.8-4.2L16.8 3.8a2.1 2.1 0 0 1 3 3L8.8 17.8 5 19Z" />
+    </symbol>
+
+    <symbol id="icon-target" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" />
+    </symbol>
+
+    <symbol id="icon-spark" viewBox="0 0 24 24">
+      <path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3Z" />
+      <path d="m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6L19 16Z" />
+    </symbol>
+
+    <symbol id="icon-inbox" viewBox="0 0 24 24">
+      <path d="M4 5.5h16l1 10.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2L4 5.5Z" />
+      <path d="M3.5 14h5l1.5 2h4l1.5-2h5" />
+    </symbol>
+  </svg>
+
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <div class="ambient ambient-three"></div>
+
+  <div class="page-shell">
+    <header class="site-header glass-panel">
+      <a class="brand" href="#" aria-label="TaskFlow home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg class="icon"><use href="#icon-check"></use></svg>
+        </span>
+
+        <span class="brand-copy">
+          <span class="brand-name">TaskFlow</span>
+          <span class="brand-tagline">Organize your day, one task at a time.</span>
+        </span>
+      </a>
+
+      <div class="current-date">
+        <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        <time id="currentDate"></time>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="intro-section" aria-labelledby="newTaskHeading">
+        <div class="section-kicker">
+          <span class="kicker-icon">
+            <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+          </span>
+          <span>Clear your mind</span>
+        </div>
+
+        <h1 id="newTaskHeading">Make space for what matters.</h1>
+        <p class="intro-copy">
+          Capture the next thing, keep momentum, and move through your day with intention.
+        </p>
+      </section>
+
+      <section class="new-task-card glass-panel" aria-labelledby="newTaskTitle">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Quick capture</p>
+            <h2 id="newTaskTitle">New Task</h2>
+          </div>
+
+          <span class="heading-orb" aria-hidden="true">
+            <svg class="icon"><use href="#icon-plus"></use></svg>
+          </span>
+        </div>
+
+        <form id="taskForm" class="task-form" novalidate>
+          <label class="sr-only" for="taskInput">What needs to be done?</label>
+
+          <div class="input-shell">
+            <svg class="icon input-icon" aria-hidden="true">
+              <use href="#icon-list"></use>
+            </svg>
+
+            <input
+              id="taskInput"
+              name="task"
+              type="text"
+              maxlength="180"
+              autocomplete="off"
+              placeholder="What needs to be done?"
+            />
+          </div>
+
+          <button class="primary-button" type="submit">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+            <span>Add Task</span>
+          </button>
+        </form>
+
+        <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="stats-card glass-panel" aria-labelledby="statsTitle">
+        <div class="stats-header">
+          <div>
+            <p class="eyebrow">Your rhythm</p>
+            <h2 id="statsTitle">Today at a glance</h2>
+          </div>
+
+          <span class="stats-status">
+            <span class="status-dot"></span>
+            Local & private
+          </span>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-item">
+            <span class="stat-icon stat-icon-blue">
+              <svg class="icon" aria-hidden="true"><use href="#icon-inbox"></use></svg>
+            </span>
+            <span class="stat-value" id="totalCount">0</span>
+            <span class="stat-label">Total</span>
+          </article>
+
+          <article class="stat-item">
+            <span class="stat-icon stat-icon-amber">
+              <svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg>
+            </span>
+            <span class="stat-value" id="pendingCount">0</span>
+            <span class="stat-label">Pending</span>
+          </article>
+
+          <article class="stat-item">
+            <span class="stat-icon stat-icon-green">
+              <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+            </span>
+            <span class="stat-value" id="completedCount">0</span>
+            <span class="stat-label">Completed</span>
+          </article>
+        </div>
+
+        <div class="progress-area">
+          <div class="progress-meta">
+            <span>Daily progress</span>
+            <strong id="progressText">0% Complete</strong>
+          </div>
+
+          <div
+            class="progress-track"
+            role="progressbar"
+            aria-label="Task completion progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            id="progressTrack"
+          >
+            <span class="progress-fill" id="progressFill"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="tasks-card glass-panel" aria-labelledby="tasksTitle">
+        <div class="tasks-toolbar">
+          <div class="tasks-heading">
+            <span class="tasks-heading-icon">
+              <svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+            </span>
+
+            <div>
+              <div class="heading-line">
+                <h2 id="tasksTitle">My Tasks</h2>
+                <span class="task-count-badge" id="taskCountBadge">0</span>
+              </div>
+              <p>Stay focused on the next meaningful step.</p>
+            </div>
+          </div>
+
+          <div class="search-shell">
+            <svg class="icon search-icon" aria-hidden="true">
+              <use href="#icon-search"></use>
+            </svg>
+
+            <label class="sr-only" for="searchInput">Search tasks</label>
+            <input
+              id="searchInput"
+              type="search"
+              autocomplete="off"
+              placeholder="Search tasks"
+            />
+
+            <button
+              class="clear-search"
+              id="clearSearch"
+              type="button"
+              aria-label="Clear search"
+              hidden
+            >
+              <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="tasks-controls">
+          <div class="filter-tabs" role="tablist" aria-label="Task filters">
+            <button class="filter-tab is-active" type="button" data-filter="all" role="tab" aria-selected="true">
+              All
+            </button>
+            <button class="filter-tab" type="button" data-filter="active" role="tab" aria-selected="false">
+              Active
+            </button>
+            <button class="filter-tab" type="button" data-filter="completed" role="tab" aria-selected="false">
+              Completed
+            </button>
+          </div>
+
+          <span class="visible-count" id="visibleCount">0 shown</span>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>TaskFlow</span>
+      <span class="footer-divider"></span>
+      <span>Built for a calmer, clearer day.</span>
+      <span class="footer-year" id="footerYear"></span>
+    </footer>
+  </div>
+</body>
+</html>
