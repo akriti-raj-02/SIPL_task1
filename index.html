@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="theme-color" content="#0b0d16" />
-  <meta
-    name="description"
-    content="TaskFlow is a premium, local-first productivity app for organizing your day."
-  />
+  <meta name="description" content="TaskFlow is a premium, local-first productivity app for organizing your day." />
   <title>TaskFlow — Organize your day</title>
   <link rel="stylesheet" href="style.css" />
   <script src="script.js" defer></script>
@@ -63,6 +60,24 @@
       <path d="M4 5.5h16l1 10.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2L4 5.5Z" />
       <path d="M3.5 14h5l1.5 2h4l1.5-2h5" />
     </symbol>
+    
+    <symbol id="icon-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+    </symbol>
+    
+    <symbol id="icon-moon" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </symbol>
+    
+    <symbol id="icon-sort" viewBox="0 0 24 24">
+      <path d="M3 6h18M6 12h12M9 18h6"/>
+    </symbol>
+    
+    <symbol id="icon-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </symbol>
   </svg>
 
   <div class="ambient ambient-one"></div>
@@ -82,9 +97,17 @@
         </span>
       </a>
 
-      <div class="current-date">
-        <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-        <time id="currentDate"></time>
+      <div class="header-actions">
+        <div class="current-date">
+          <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+          <time id="currentTime"></time>
+          <span class="date-divider">|</span>
+          <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+          <time id="currentDate"></time>
+        </div>
+        <button class="theme-toggle icon-button" id="themeToggle" aria-label="Toggle theme">
+          <svg class="icon" aria-hidden="true"><use href="#icon-sun"></use></svg>
+        </button>
       </div>
     </header>
 
@@ -132,11 +155,27 @@
               placeholder="What needs to be done?"
             />
           </div>
-
-          <button class="primary-button" type="submit">
-            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-            <span>Add Task</span>
-          </button>
+          
+          <div class="form-options">
+            <div class="select-shell">
+              <label class="sr-only" for="priorityInput">Priority</label>
+              <select id="priorityInput" name="priority">
+                <option value="low">Low Priority</option>
+                <option value="medium" selected>Medium Priority</option>
+                <option value="high">High Priority</option>
+              </select>
+            </div>
+            
+            <div class="date-shell">
+              <label class="sr-only" for="dueDateInput">Due Date</label>
+              <input type="date" id="dueDateInput" name="dueDate" />
+            </div>
+            
+            <button class="primary-button" type="submit">
+              <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+              <span>Add Task</span>
+            </button>
+          </div>
         </form>
 
         <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
@@ -178,6 +217,14 @@
             </span>
             <span class="stat-value" id="completedCount">0</span>
             <span class="stat-label">Completed</span>
+          </article>
+          
+          <article class="stat-item">
+            <span class="stat-icon stat-icon-red">
+              <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+            </span>
+            <span class="stat-value" id="highPriorityCount">0</span>
+            <span class="stat-label">High Priority</span>
           </article>
         </div>
 
@@ -243,19 +290,47 @@
         </div>
 
         <div class="tasks-controls">
-          <div class="filter-tabs" role="tablist" aria-label="Task filters">
-            <button class="filter-tab is-active" type="button" data-filter="all" role="tab" aria-selected="true">
-              All
-            </button>
-            <button class="filter-tab" type="button" data-filter="active" role="tab" aria-selected="false">
-              Active
-            </button>
-            <button class="filter-tab" type="button" data-filter="completed" role="tab" aria-selected="false">
-              Completed
-            </button>
+          <div class="tasks-filters">
+            <div class="filter-tabs" role="tablist" aria-label="Status filters" id="statusFilters">
+              <button class="filter-tab is-active" type="button" data-filter="all" role="tab" aria-selected="true">
+                All
+              </button>
+              <button class="filter-tab" type="button" data-filter="active" role="tab" aria-selected="false">
+                Active
+              </button>
+              <button class="filter-tab" type="button" data-filter="completed" role="tab" aria-selected="false">
+                Completed
+              </button>
+            </div>
+            
+            <div class="filter-tabs" role="tablist" aria-label="Priority filters" id="priorityFilters">
+              <button class="filter-tab is-active" type="button" data-priority="all" role="tab" aria-selected="true">
+                All Priorities
+              </button>
+              <button class="filter-tab" type="button" data-priority="high" role="tab" aria-selected="false">
+                High
+              </button>
+              <button class="filter-tab" type="button" data-priority="medium" role="tab" aria-selected="false">
+                Medium
+              </button>
+              <button class="filter-tab" type="button" data-priority="low" role="tab" aria-selected="false">
+                Low
+              </button>
+            </div>
           </div>
 
-          <span class="visible-count" id="visibleCount">0 shown</span>
+          <div class="tasks-sort-count">
+            <div class="sort-select-wrapper">
+              <svg class="icon sort-icon" aria-hidden="true"><use href="#icon-sort"></use></svg>
+              <label class="sr-only" for="sortInput">Sort tasks</label>
+              <select id="sortInput" class="sort-select">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="priority">Priority</option>
+              </select>
+            </div>
+            <span class="visible-count" id="visibleCount">0 shown</span>
+          </div>
         </div>
 
         <div class="task-list" id="taskList"></div>
