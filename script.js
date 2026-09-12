@@ -1,27 +1,37 @@
 "use strict";
 
 const STORAGE_KEY = "taskflow_tasks";
+const THEME_KEY = "taskflow_theme";
 
 const state = {
   tasks: [],
   filter: "all",
+  priorityFilter: "all",
+  sort: "newest",
   query: "",
   editingId: null,
   deletingId: null,
-  newTaskId: null
+  newTaskId: null,
+  theme: localStorage.getItem(THEME_KEY) || "dark"
 };
 
 const dom = {
   currentDate: document.querySelector("#currentDate"),
+  currentTime: document.querySelector("#currentTime"),
   footerYear: document.querySelector("#footerYear"),
+  themeToggle: document.querySelector("#themeToggle"),
 
   taskForm: document.querySelector("#taskForm"),
   taskInput: document.querySelector("#taskInput"),
+  priorityInput: document.querySelector("#priorityInput"),
+  dueDateInput: document.querySelector("#dueDateInput"),
   formMessage: document.querySelector("#formMessage"),
 
   totalCount: document.querySelector("#totalCount"),
   pendingCount: document.querySelector("#pendingCount"),
   completedCount: document.querySelector("#completedCount"),
+  highPriorityCount: document.querySelector("#highPriorityCount"),
+  
   progressText: document.querySelector("#progressText"),
   progressFill: document.querySelector("#progressFill"),
   progressTrack: document.querySelector("#progressTrack"),
@@ -32,30 +42,25 @@ const dom = {
 
   searchInput: document.querySelector("#searchInput"),
   clearSearch: document.querySelector("#clearSearch"),
-  filterTabs: document.querySelectorAll(".filter-tab")
+  statusFilters: document.querySelectorAll("#statusFilters .filter-tab"),
+  priorityFilters: document.querySelectorAll("#priorityFilters .filter-tab"),
+  sortInput: document.querySelector("#sortInput")
 };
 
 function createId() {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
     return window.crypto.randomUUID();
   }
-
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function loadTasks() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) {
-      return [];
-    }
+    if (!stored) return [];
 
     const parsed = JSON.parse(stored);
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(parsed)) return [];
 
     return parsed.map(task => {
       if (!task || typeof task !== "object") return null;
@@ -63,6 +68,8 @@ function loadTasks() {
       if (typeof task.text !== "string") return null;
       if (typeof task.completed !== "boolean") task.completed = false;
       if (typeof task.createdAt !== "string") task.createdAt = new Date().toISOString();
+      if (typeof task.priority !== "string") task.priority = "medium";
+      if (task.dueDate === undefined) task.dueDate = null;
       return task;
     }).filter(Boolean);
   } catch {
@@ -78,6 +85,20 @@ function saveTasks() {
   }
 }
 
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", state.theme);
+  const iconUse = dom.themeToggle.querySelector("use");
+  if (iconUse) {
+    iconUse.setAttribute("href", state.theme === "dark" ? "#icon-sun" : "#icon-moon");
+  }
+}
+
+function toggleTheme() {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, state.theme);
+  applyTheme();
+}
+
 function formatHeaderDate(date = new Date()) {
   return new Intl.DateTimeFormat(undefined, {
     weekday: "long",
@@ -89,11 +110,9 @@ function formatHeaderDate(date = new Date()) {
 
 function formatTaskDate(dateString) {
   const date = new Date(dateString);
-
   if (Number.isNaN(date.getTime())) {
     return "Date unavailable";
   }
-
   return new Intl.DateTimeFormat(undefined, {
     day: "numeric",
     month: "short",
@@ -101,6 +120,16 @@ function formatTaskDate(dateString) {
     hour: "numeric",
     minute: "2-digit"
   }).format(date);
+}
+
+function updateTime() {
+  const now = new Date();
+  if (dom.currentTime) {
+    dom.currentTime.textContent = new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(now);
+  }
 }
 
 function showFormMessage(message = "", success = false) {
@@ -111,25 +140,49 @@ function showFormMessage(message = "", success = false) {
 function getVisibleTasks() {
   const normalizedQuery = state.query.trim().toLowerCase();
 
-  return state.tasks
+  let filtered = state.tasks
     .filter((task) => {
-      if (state.filter === "active") {
-        return !task.completed;
-      }
-
-      if (state.filter === "completed") {
-        return task.completed;
-      }
-
+      if (state.filter === "active") return !task.completed;
+      if (state.filter === "completed") return task.completed;
       return true;
     })
     .filter((task) => {
-      if (!normalizedQuery) {
-        return true;
+      if (state.priorityFilter === "all") return true;
+      return task.priority === state.priorityFilter;
+    })
+    .filter((task) => {
+      if (!normalizedQuery) return true;
+      
+      const textMatch = task.text.toLowerCase().includes(normalizedQuery);
+      const priorityMatch = task.priority.toLowerCase().includes(normalizedQuery);
+      
+      let dateMatch = false;
+      if (task.dueDate) {
+        dateMatch = task.dueDate.includes(normalizedQuery);
       }
-
-      return task.text.toLowerCase().includes(normalizedQuery);
+      
+      return textMatch || priorityMatch || dateMatch;
     });
+
+  filtered.sort((a, b) => {
+    if (state.sort === "newest") {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    } else if (state.sort === "oldest") {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    } else if (state.sort === "priority") {
+      const priorityWeight = { high: 3, medium: 2, low: 1 };
+      const weightA = priorityWeight[a.priority] || 0;
+      const weightB = priorityWeight[b.priority] || 0;
+      
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    }
+    return 0;
+  });
+
+  return filtered;
 }
 
 function getEmptyState() {
@@ -247,12 +300,37 @@ function createTaskRow(task) {
     editForm.dataset.action = "edit-form";
     editForm.dataset.id = task.id;
 
+    const rowTop = document.createElement("div");
+    rowTop.className = "edit-row";
+
     const editInput = document.createElement("input");
     editInput.className = "edit-input";
     editInput.type = "text";
     editInput.maxLength = 180;
     editInput.value = task.text;
     editInput.setAttribute("aria-label", "Edit task title");
+
+    const rowBottom = document.createElement("div");
+    rowBottom.className = "edit-row";
+
+    const editPriority = document.createElement("select");
+    editPriority.className = "edit-select";
+    editPriority.name = "priority";
+    editPriority.setAttribute("aria-label", "Edit task priority");
+    ["low", "medium", "high"].forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p.charAt(0).toUpperCase() + p.slice(1) + " Priority";
+      if (task.priority === p) opt.selected = true;
+      editPriority.append(opt);
+    });
+
+    const editDate = document.createElement("input");
+    editDate.type = "date";
+    editDate.className = "edit-date";
+    editDate.name = "dueDate";
+    editDate.setAttribute("aria-label", "Edit due date");
+    if (task.dueDate) editDate.value = task.dueDate;
 
     const saveButton = createActionButton({
       label: "Save",
@@ -271,23 +349,77 @@ function createTaskRow(task) {
       taskId: task.id
     });
 
-    editForm.append(editInput, saveButton, cancelButton);
+    rowTop.append(editInput);
+    rowBottom.append(editPriority, editDate, saveButton, cancelButton);
+    
+    editForm.append(rowTop, rowBottom);
     content.append(editForm);
 
     requestAnimationFrame(() => {
       editInput.focus();
-      editInput.select();
+      const length = editInput.value.length;
+      editInput.setSelectionRange(length, length);
     });
   } else {
+    const headerRow = document.createElement("div");
+    headerRow.className = "task-header-row";
+
+    const priorityBadge = document.createElement("span");
+    priorityBadge.className = `priority-badge ${task.priority}`;
+    priorityBadge.textContent = task.priority;
+
     const title = document.createElement("div");
     title.className = "task-title";
     title.textContent = task.text;
 
+    headerRow.append(priorityBadge, title);
+
     const meta = document.createElement("div");
     meta.className = "task-meta";
-    meta.textContent = `Created ${formatTaskDate(task.createdAt)}`;
+    
+    const createdSpan = document.createElement("span");
+    createdSpan.textContent = `Created ${formatTaskDate(task.createdAt)}`;
+    meta.append(createdSpan);
+    
+    if (task.dueDate) {
+      const dueDateSpan = document.createElement("span");
+      dueDateSpan.className = "task-due-date";
+      
+      const dueIcon = createIcon("#icon-calendar");
+      dueIcon.style.width = "0.75rem";
+      dueIcon.style.height = "0.75rem";
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const [y, m, d] = task.dueDate.split("-");
+      const dueDateObj = new Date(y, m - 1, d);
+      dueDateObj.setHours(0, 0, 0, 0);
+      
+      const timeDiff = dueDateObj.getTime() - today.getTime();
+      const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+      
+      let dueText = task.dueDate;
+      if (!task.completed) {
+        if (daysDiff < 0) {
+          dueText = `Overdue (${task.dueDate})`;
+          dueDateSpan.classList.add("overdue");
+        } else if (daysDiff === 0) {
+          dueText = "Due Today";
+          dueDateSpan.classList.add("due-today");
+        } else {
+          dueText = `Due ${task.dueDate}`;
+        }
+      } else {
+        dueText = `Due ${task.dueDate}`;
+      }
+      
+      const textNode = document.createTextNode(` ${dueText}`);
+      dueDateSpan.append(dueIcon, textNode);
+      meta.append(dueDateSpan);
+    }
 
-    content.append(title, meta);
+    content.append(headerRow, meta);
   }
 
   const actions = document.createElement("div");
@@ -297,7 +429,7 @@ function createTaskRow(task) {
 
     const confirmationLabel = document.createElement("span");
     confirmationLabel.className = "confirmation-label";
-    confirmationLabel.textContent = "Delete this task?";
+    confirmationLabel.textContent = "Delete?";
 
     const cancelButton = createActionButton({
       label: "Cancel",
@@ -350,17 +482,13 @@ function renderTasks() {
     dom.taskList.append(getEmptyState());
   } else {
     const fragment = document.createDocumentFragment();
-
     visibleTasks.forEach((task) => {
       fragment.append(createTaskRow(task));
     });
-
     dom.taskList.append(fragment);
   }
 
-  dom.visibleCount.textContent =
-    `${visibleTasks.length} ${visibleTasks.length === 1 ? "shown" : "shown"}`;
-
+  dom.visibleCount.textContent = `${visibleTasks.length} shown`;
   dom.clearSearch.hidden = state.query.length === 0;
 }
 
@@ -368,11 +496,15 @@ function renderStats() {
   const total = state.tasks.length;
   const completed = state.tasks.filter((task) => task.completed).length;
   const pending = total - completed;
+  const highPriority = state.tasks.filter(t => t.priority === "high" && !t.completed).length;
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   dom.totalCount.textContent = String(total);
   dom.pendingCount.textContent = String(pending);
   dom.completedCount.textContent = String(completed);
+  if(dom.highPriorityCount) {
+    dom.highPriorityCount.textContent = String(highPriority);
+  }
   dom.taskCountBadge.textContent = String(total);
   dom.progressText.textContent = `${percentage}% Complete`;
   dom.progressFill.style.width = `${percentage}%`;
@@ -380,9 +512,14 @@ function renderStats() {
 }
 
 function renderFilters() {
-  dom.filterTabs.forEach((tab) => {
+  dom.statusFilters.forEach((tab) => {
     const isActive = tab.dataset.filter === state.filter;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
 
+  dom.priorityFilters.forEach((tab) => {
+    const isActive = tab.dataset.priority === state.priorityFilter;
     tab.classList.toggle("is-active", isActive);
     tab.setAttribute("aria-selected", String(isActive));
   });
@@ -394,7 +531,7 @@ function render() {
   renderTasks();
 }
 
-function addTask(text) {
+function addTask(text, priority, dueDate) {
   const normalizedText = text.trim();
 
   if (!normalizedText) {
@@ -407,6 +544,8 @@ function addTask(text) {
     id: createId(),
     text: normalizedText,
     completed: false,
+    priority: priority || "medium",
+    dueDate: dueDate || null,
     createdAt: new Date().toISOString()
   };
 
@@ -417,6 +556,8 @@ function addTask(text) {
   render();
 
   dom.taskInput.value = "";
+  dom.priorityInput.value = "medium";
+  dom.dueDateInput.value = "";
   dom.taskInput.focus();
   showFormMessage("Task added.", true);
 
@@ -429,10 +570,7 @@ function addTask(text) {
 
 function toggleTask(taskId) {
   const task = state.tasks.find((item) => item.id === taskId);
-
-  if (!task) {
-    return;
-  }
+  if (!task) return;
 
   task.completed = !task.completed;
   state.editingId = null;
@@ -448,7 +586,7 @@ function beginEdit(taskId) {
   render();
 }
 
-function saveEdit(taskId, text) {
+function saveEdit(taskId, text, priority, dueDate) {
   const normalizedText = text.trim();
 
   if (!normalizedText) {
@@ -456,12 +594,11 @@ function saveEdit(taskId, text) {
   }
 
   const task = state.tasks.find((item) => item.id === taskId);
-
-  if (!task) {
-    return false;
-  }
+  if (!task) return false;
 
   task.text = normalizedText;
+  task.priority = priority;
+  task.dueDate = dueDate || null;
   state.editingId = null;
 
   saveTasks();
@@ -488,7 +625,6 @@ function cancelDelete() {
 
 function deleteTask(taskId) {
   const row = dom.taskList.querySelector(`[data-id="${CSS.escape(taskId)}"]`);
-
   if (row) {
     row.classList.add("is-removing");
   }
@@ -496,7 +632,6 @@ function deleteTask(taskId) {
   window.setTimeout(() => {
     state.tasks = state.tasks.filter((task) => task.id !== taskId);
     state.deletingId = null;
-
     saveTasks();
     render();
   }, 240);
@@ -504,10 +639,7 @@ function deleteTask(taskId) {
 
 function handleTaskListClick(event) {
   const actionButton = event.target.closest("[data-action]");
-
-  if (!actionButton) {
-    return;
-  }
+  if (!actionButton) return;
 
   const action = actionButton.dataset.action;
   const taskId = actionButton.dataset.id;
@@ -527,8 +659,6 @@ function handleTaskListClick(event) {
     return;
   }
 
-
-
   if (action === "delete") {
     beginDelete(taskId);
     return;
@@ -546,18 +676,10 @@ function handleTaskListClick(event) {
 
 function handleTaskListKeydown(event) {
   const editInput = event.target.closest(".edit-input");
-
-  if (!editInput) {
-    return;
-  }
+  if (!editInput) return;
 
   const taskId = editInput.closest("[data-id]")?.dataset.id;
-
-  if (!taskId) {
-    return;
-  }
-
-
+  if (!taskId) return;
 
   if (event.key === "Escape") {
     event.preventDefault();
@@ -566,9 +688,7 @@ function handleTaskListKeydown(event) {
 }
 
 function handleGlobalKeydown(event) {
-  if (event.key !== "Escape") {
-    return;
-  }
+  if (event.key !== "Escape") return;
 
   if (state.editingId !== null) {
     cancelEdit();
@@ -582,13 +702,22 @@ function handleGlobalKeydown(event) {
 
 function initializeDate() {
   const now = new Date();
-
-  dom.currentDate.textContent = formatHeaderDate(now);
-  dom.currentDate.dateTime = now.toISOString();
-  dom.footerYear.textContent = `© ${now.getFullYear()}`;
+  if(dom.currentDate) {
+    dom.currentDate.textContent = formatHeaderDate(now);
+    dom.currentDate.dateTime = now.toISOString();
+  }
+  if(dom.footerYear) {
+    dom.footerYear.textContent = `© ${now.getFullYear()}`;
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
 }
 
 function initializeEventListeners() {
+  if (dom.themeToggle) {
+    dom.themeToggle.addEventListener("click", toggleTheme);
+  }
+
   const brandLogo = document.querySelector(".brand");
   if (brandLogo) {
     brandLogo.addEventListener("click", (e) => {
@@ -601,7 +730,6 @@ function initializeEventListeners() {
   if (headingOrb) {
     headingOrb.addEventListener("click", () => {
       dom.taskInput.focus();
-      dom.taskInput.select();
     });
   }
 
@@ -611,7 +739,10 @@ function initializeEventListeners() {
       event.preventDefault();
       const taskId = editForm.dataset.id;
       const input = editForm.querySelector(".edit-input");
-      if (!saveEdit(taskId, input?.value || "")) {
+      const priorityInput = editForm.querySelector(".edit-select");
+      const dateInput = editForm.querySelector(".edit-date");
+      
+      if (!saveEdit(taskId, input?.value || "", priorityInput?.value || "medium", dateInput?.value || null)) {
         input?.focus();
         input?.classList.add("input-error");
       }
@@ -620,7 +751,7 @@ function initializeEventListeners() {
 
   dom.taskForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    addTask(dom.taskInput.value);
+    addTask(dom.taskInput.value, dom.priorityInput.value, dom.dueDateInput.value);
   });
 
   dom.taskInput.addEventListener("input", () => {
@@ -641,12 +772,26 @@ function initializeEventListeners() {
     dom.searchInput.focus();
   });
 
-  dom.filterTabs.forEach((tab) => {
+  dom.statusFilters.forEach((tab) => {
     tab.addEventListener("click", () => {
       state.filter = tab.dataset.filter;
       render();
     });
   });
+
+  dom.priorityFilters.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      state.priorityFilter = tab.dataset.priority;
+      render();
+    });
+  });
+
+  if (dom.sortInput) {
+    dom.sortInput.addEventListener("change", (e) => {
+      state.sort = e.target.value;
+      renderTasks();
+    });
+  }
 
   dom.taskList.addEventListener("click", handleTaskListClick);
   dom.taskList.addEventListener("keydown", handleTaskListKeydown);
@@ -654,6 +799,7 @@ function initializeEventListeners() {
 }
 
 function initialize() {
+  applyTheme();
   state.tasks = loadTasks();
   initializeDate();
   initializeEventListeners();
